@@ -3,8 +3,9 @@ package me.zhyd.oauth.request;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson.JSONObject;
+import me.zhyd.oauth.cache.AuthStateCache;
 import me.zhyd.oauth.config.AuthConfig;
-import me.zhyd.oauth.config.AuthSource;
+import me.zhyd.oauth.config.AuthDefaultSource;
 import me.zhyd.oauth.enums.AuthUserGender;
 import me.zhyd.oauth.exception.AuthException;
 import me.zhyd.oauth.model.AuthCallback;
@@ -19,13 +20,16 @@ import me.zhyd.oauth.utils.UrlBuilder;
  * 微博登录
  *
  * @author yadong.zhang (yadong.zhang0415(a)gmail.com)
- * @version 1.0
- * @since 1.8
+ * @since 1.0.0
  */
 public class AuthWeiboRequest extends AuthDefaultRequest {
 
     public AuthWeiboRequest(AuthConfig config) {
-        super(config, AuthSource.WEIBO);
+        super(config, AuthDefaultSource.WEIBO);
+    }
+
+    public AuthWeiboRequest(AuthConfig config, AuthStateCache authStateCache) {
+        super(config, AuthDefaultSource.WEIBO, authStateCache);
     }
 
     @Override
@@ -51,7 +55,7 @@ public class AuthWeiboRequest extends AuthDefaultRequest {
         String oauthParam = String.format("uid=%s&access_token=%s", uid, accessToken);
         HttpResponse response = HttpRequest.get(userInfoUrl(authToken))
             .header("Authorization", "OAuth2 " + oauthParam)
-            .header("API-RemoteIP", IpUtils.getIp())
+            .header("API-RemoteIP", IpUtils.getLocalIp())
             .execute();
         String userInfo = response.body();
         JSONObject object = JSONObject.parseObject(userInfo);
@@ -69,7 +73,7 @@ public class AuthWeiboRequest extends AuthDefaultRequest {
             .remark(object.getString("description"))
             .gender(AuthUserGender.getRealGender(object.getString("gender")))
             .token(authToken)
-            .source(source)
+            .source(source.toString())
             .build();
     }
 

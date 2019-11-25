@@ -2,8 +2,9 @@ package me.zhyd.oauth.request;
 
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson.JSONObject;
+import me.zhyd.oauth.cache.AuthStateCache;
 import me.zhyd.oauth.config.AuthConfig;
-import me.zhyd.oauth.config.AuthSource;
+import me.zhyd.oauth.config.AuthDefaultSource;
 import me.zhyd.oauth.enums.AuthUserGender;
 import me.zhyd.oauth.exception.AuthException;
 import me.zhyd.oauth.model.AuthCallback;
@@ -17,22 +18,25 @@ import java.util.Map;
  * Github登录
  *
  * @author yadong.zhang (yadong.zhang0415(a)gmail.com)
- * @version 1.0
- * @since 1.8
+ * @since 1.0.0
  */
 public class AuthGithubRequest extends AuthDefaultRequest {
 
     public AuthGithubRequest(AuthConfig config) {
-        super(config, AuthSource.GITHUB);
+        super(config, AuthDefaultSource.GITHUB);
+    }
+
+    public AuthGithubRequest(AuthConfig config, AuthStateCache authStateCache) {
+        super(config, AuthDefaultSource.GITHUB, authStateCache);
     }
 
     @Override
     protected AuthToken getAccessToken(AuthCallback authCallback) {
         HttpResponse response = doPostAuthorizationCode(authCallback.getCode());
         Map<String, String> res = GlobalAuthUtil.parseStringToMap(response.body());
-        if (res.containsKey("error")) {
-            throw new AuthException(res.get("error") + ":" + res.get("error_description"));
-        }
+
+        this.checkResponse(res.containsKey("error"), res.get("error_description"));
+
         return AuthToken.builder()
             .accessToken(res.get("access_token"))
             .scope(res.get("scope"))
@@ -44,9 +48,9 @@ public class AuthGithubRequest extends AuthDefaultRequest {
     protected AuthUser getUserInfo(AuthToken authToken) {
         HttpResponse response = doGetUserInfo(authToken);
         JSONObject object = JSONObject.parseObject(response.body());
-        if (object.containsKey("error")) {
-            throw new AuthException(object.getString("error_description"));
-        }
+
+        this.checkResponse(object.containsKey("error"), object.getString("error_description"));
+
         return AuthUser.builder()
             .uuid(object.getString("id"))
             .username(object.getString("login"))
@@ -59,16 +63,14 @@ public class AuthGithubRequest extends AuthDefaultRequest {
             .remark(object.getString("bio"))
             .gender(AuthUserGender.UNKNOWN)
             .token(authToken)
-            .source(source)
+            .source(source.toString())
             .build();
     }
 
-    /**
-     * 检查响应内容是否正确
-     *
-     * @param object 请求响应内容
-     */
-    private void checkResponse(JSONObject object) {
-
+    private void checkResponse(boolean error, String error_description) {
+        if (error) {
+            throw new AuthException(error_description);
+        }
     }
+
 }
